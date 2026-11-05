@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Registration (iframe actions)</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 30px;
+        }
+        .container {
+            background: white;
+            width: 420px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 8px;
+        }
+        label { display: block; margin-top: 15px; }
+        input, select {
+            width: 100%;
+            padding: 9px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+        iframe {
+            width: 100%;
+            height: 90px;
+            margin-top: 20px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+        #successBanner {
+            color: green;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h2>Employee Registration Form</h2>
+    <p style="color:#64748b;font-size:14px;">Submit control lives in the embedded actions iframe.</p>
+
+    <form id="empRegistrationForm">
+        <label for="empFullName">Full Name</label>
+        <input type="text" id="empFullName" name="empFullName" placeholder="Enter your name">
+
+        <label for="empEmail">Email</label>
+        <input type="email" id="empEmail" name="empEmail" placeholder="Enter email">
+
+        <label for="empDepartment">Department</label>
+        <select id="empDepartment" name="empDepartment">
+            <option value="">Select Department</option>
+            <option value="IT">IT</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+        </select>
+
+        <label>Employment Type</label>
+        <input type="radio" id="empPermanent" name="empEmployment" value="Permanent" style="width:auto">
+        <label for="empPermanent" style="display:inline">Permanent</label>
+
+        <input type="radio" id="empContract" name="empEmployment" value="Contract" style="width:auto">
+        <label for="empContract" style="display:inline">Contract</label>
+
+        <div style="margin-top:15px">
+            <input type="checkbox" id="empTerms" style="width:auto">
+            <label for="empTerms" style="display:inline">I accept the terms</label>
+        </div>
+    </form>
+
+    <iframe
+        name="actionsFrame"
+        id="actionsFrame"
+        title="Registration actions"
+        src="form1_iframe_actions.html">
+    </iframe>
+
+    <div id="successBanner"></div>
+</div>
+
+<script>
+    document.getElementById("empRegistrationForm").addEventListener("submit", function (event) {
+        event.preventDefault();
+        document.getElementById("successBanner").innerText = "Employee registered successfully!";
+    });
+
+    window.addEventListener("message", function (event) {
+        if (event.data && event.data.type === "employee-form-submit") {
+            document.getElementById("empRegistrationForm").dispatchEvent(
+                new Event("submit", { bubbles: true, cancelable: true })
+            );
+        }
+    });
+</script>
+</body>
+</html>

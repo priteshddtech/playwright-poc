@@ -1,0 +1,120 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Employee Registration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 30px;
+        }
+
+        .container {
+            background: white;
+            width: 400px;
+            margin: auto;
+            padding: 25px;
+            border-radius: 8px;
+        }
+
+        label {
+            display: block;
+            margin-top: 15px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 9px;
+            margin-top: 5px;
+            box-sizing: border-box;
+        }
+
+        button {
+            margin-top: 20px;
+            padding: 10px 20px;
+            background: #2563eb;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        #successMessage {
+            color: green;
+            margin-top: 15px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h2>Employee Registration Form</h2>
+
+    <form id="employeeForm">
+
+        <label for="fullName">Full Name</label>
+        <input type="text" id="fullName"
+               name="fullName" placeholder="Enter your name">
+
+        <label for="email">Email</label>
+        <input type="email" id="email"
+               name="email" placeholder="Enter email">
+
+        <label for="department">Department</label>
+        <select id="department" name="department">
+            <option value="">Select Department</option>
+            <option value="IT">IT</option>
+            <option value="HR">HR</option>
+            <option value="Finance">Finance</option>
+        </select>
+
+        <label>Employment Type</label>
+
+        <input type="radio" id="permanent"
+               name="employment" value="Permanent"
+               style="width:auto">
+        <label for="permanent" style="display:inline">
+            Permanent
+        </label>
+
+        <input type="radio" id="contract"
+               name="employment" value="Contract"
+               style="width:auto">
+        <label for="contract" style="display:inline">
+            Contract
+        </label>
+
+        <div style="margin-top:15px">
+            <input type="checkbox" id="terms"
+                   style="width:auto">
+            <label for="terms" style="display:inline">
+                I accept the terms
+            </label>
+        </div>
+
+        <button type="submit" id="submitButton">
+            Submit
+        </button>
+
+    </form>
+
+    <div id="successMessage"></div>
+
+</div>
+
+<script>
+    document.getElementById("employeeForm")
+        .addEventListener("submit", function(event) {
+
+            event.preventDefault();
+
+            document.getElementById("successMessage")
+                .innerText = "Employee registered successfully!";
+
+        });
+</script>
+
+</body>
+</html>

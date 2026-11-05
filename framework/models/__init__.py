@@ -1,0 +1,33 @@
+from framework.models.domain import (
+    ActionType,
+    ElementIntent,
+    ExecutionContext,
+    FailureCategory,
+    FailureContext,
+    FrameInfo,
+    HealingEventRecord,
+    HealingMethod,
+    HealingResult,
+    HealingStatus,
+    LocatorCandidate,
+    LocatorDefinition,
+    LocatorStrategy,
+    ValidationResult,
+)
+
+__all__ = [
+    "ActionType",
+    "ElementIntent",
+    "ExecutionContext",
+    "FailureCategory",
+    "FailureContext",
+    "FrameInfo",
+    "HealingEventRecord",
+    "HealingMethod",
+    "HealingResult",
+    "HealingStatus",
+    "LocatorCandidate",
+    "LocatorDefinition",
+    "LocatorStrategy",
+    "ValidationResult",
+]

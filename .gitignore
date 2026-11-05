@@ -1,0 +1,87 @@
+# Environment and secrets
+.env
+.env.*
+!.env.example
+
+# Documentation (local notes — not versioned)
+*.md
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Testing / Playwright
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+test-results/
+playwright-report/
+playwright/.cache/
+blob-report/
+trace.zip
+
+# Type checkers / linters
+.mypy_cache/
+.ruff_cache/
+.pytype/
+
+# Jupyter
+.ipynb_checkpoints
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+*.log
+
+# Self-healing runtime artifacts (generated during tests / demos — do not commit)
+artifacts/
+artifacts/**
+artifacts/html/
+artifacts/logs/
+artifacts/screenshots/
+artifacts/**/*.html
+artifacts/**/*.jsonl
+artifacts/**/*.png
+artifacts/**/*.db
