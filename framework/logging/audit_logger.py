@@ -47,6 +47,8 @@ class AuditLogger:
         healing_succeeded: bool,
         html_snapshot_path: str | None = None,
         screenshot_path: str | None = None,
+        page_key: str | None = None,
+        page_url: str | None = None,
     ) -> None:
         from framework.logging.healing_log_formatter import candidate_to_audit_dict
 
@@ -77,6 +79,8 @@ class AuditLogger:
             "environment": execution.environment,
             "element_key": intent.element_key,
             "element_description": intent.description,
+            "page_key": page_key,
+            "page_url": page_url,
             "action": intent.action.value,
             "failure_category": failure_category.value,
             "failure_category_label": FAILURE_CATEGORY_LABELS.get(

@@ -28,6 +28,65 @@ APPLICATION_ID=employee_portal
 
 Use `LLM_MODE=openai` with a valid `OPENAI_API_KEY` for real LLM healing.
 
+### Custom LLM prompts (per application)
+
+If no override is set, the built-in default system prompt is used. You can override for better results on specific apps:
+
+**Option A — file (recommended)**
+
+```env
+LLM_SYSTEM_PROMPT_FILE=configs/prompts/employee_portal_system.prompt
+LLM_USER_CONTEXT_FILE=configs/prompts/employee_portal_user_context.prompt
+```
+
+**Option B — inline in `.env`**
+
+```env
+LLM_SYSTEM_PROMPT=You are healing locators for our SAP-style ERP...
+LLM_USER_CONTEXT=Module: Order entry. Buttons often use data-testid.
+```
+
+Priority: **file > inline text > default**. Files may use placeholders `{application_id}` and `{environment}`.
+
+Example prompts live under [`configs/prompts/`](configs/prompts/).
+
+**Option C — in test code on `SelfHealingPage` (highest priority)**
+
+```python
+from framework import SelfHealingPage, LlmPromptOverride
+from framework.models.domain import ExecutionContext
+
+execution = ExecutionContext(
+    execution_id="run-1",
+    test_name="test_checkout",
+    application_id="my_crm",
+    environment="qa",
+)
+
+shp = SelfHealingPage(
+    page,
+    execution,
+    llm_system_prompt="You heal locators for our CRM...",
+    llm_user_context="Uses React MUI; prefer data-testid.",
+)
+
+# Or update later:
+shp.set_llm_prompt(
+    system_prompt="Updated instructions...",
+    user_context="Checkout v2 module",
+)
+
+# Or pass a single object:
+shp = SelfHealingPage(
+    page,
+    execution,
+    llm_prompt=LlmPromptOverride(
+        system_prompt="...",
+        user_context="...",
+    ),
+)
+```
+
 ## Run tests
 
 ```bash
@@ -93,7 +152,17 @@ Set `LOG_HEALING_SUMMARY_CONSOLE=true` in `.env` (enabled automatically in `run_
 - `tests/` — E2E and unit tests
 - `htmls/` — local demo pages (`form1.html`, `form1_changed.html`)
 - `artifacts/` — runtime screenshots, HTML snapshots, logs, SQLite DB (gitignored)
+- `dashboard/` — Streamlit reliability dashboard (see [dashboard/README.md](dashboard/README.md))
+
+### Reliability dashboard
+
+```bash
+pip install -r dashboard/requirements.txt
+streamlit run dashboard/app.py
+```
+
+Reads `artifacts/logs/healing_audit.jsonl` and `artifacts/locator_kb.db` (override with `ARTIFACTS_DIR`).
 
 ## Phase 2 (not in MVP)
 
-REST `/heal` API, dashboard, PostgreSQL, Redis cache, human review UI, OpenTelemetry.
+REST `/heal` API, PostgreSQL, Redis cache, human review UI, OpenTelemetry.

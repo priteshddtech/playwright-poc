@@ -1,0 +1,3 @@
+Domain: HR employee registration and onboarding in {application_id}.
+Common controls: Full Name, Email, Department dropdown, employment type radios, terms checkbox, Submit/Complete Registration.
+Success is shown in #successMessage or #successBanner on the host page after submit.

@@ -10,6 +10,7 @@ from framework.healing.heuristic_engine import HeuristicEngine
 from framework.healing.retry_manager import RetryManager
 from framework.knowledge.locator_repository import LocatorRepository
 from framework.llm.base_provider import LLMProvider
+from framework.llm.prompt_config import LlmPromptOverride
 from framework.logging.audit_logger import AuditLogger
 from framework.logging.healing_log_formatter import (
     FAILURE_CATEGORY_LABELS,
@@ -144,6 +145,7 @@ class HealingOrchestrator:
                     trace,
                     result,
                     True,
+                    page_key,
                 )
                 return result
 
@@ -168,6 +170,7 @@ class HealingOrchestrator:
                 trace,
                 failed,
                 False,
+                page_key,
             )
             raise HumanReviewRequiredError("Element appears removed; human review required.")
 
@@ -184,6 +187,7 @@ class HealingOrchestrator:
                 trace,
                 healed,
                 True,
+                page_key,
             )
             return healed
 
@@ -254,6 +258,7 @@ class HealingOrchestrator:
                     trace,
                     llm_result,
                     True,
+                    page_key,
                 )
                 return llm_result
         else:
@@ -291,6 +296,7 @@ class HealingOrchestrator:
             trace,
             failed,
             False,
+            page_key,
         )
         return failed
 
@@ -304,6 +310,7 @@ class HealingOrchestrator:
         trace: HealingTrace,
         result: HealingResult | None,
         healing_succeeded: bool,
+        page_key: str,
     ) -> None:
         trace.failure_category = category
         self._audit.log_healing_outcome(
@@ -317,6 +324,8 @@ class HealingOrchestrator:
             healing_succeeded=healing_succeeded,
             html_snapshot_path=failure_context.html_snapshot_path,
             screenshot_path=failure_context.screenshot_path,
+            page_key=page_key,
+            page_url=failure_context.url,
         )
 
     def _try_candidates(
@@ -557,6 +566,12 @@ class HealingOrchestrator:
                 healing_method=method,
             )
         )
+
+    def set_llm_prompt(self, override: LlmPromptOverride | None) -> None:
+        """Update LLM prompts at runtime (OpenAI provider only)."""
+        setter = getattr(self._llm_provider, "set_prompt_override", None)
+        if callable(setter):
+            setter(override)
 
     @staticmethod
     def _page_key(page: Page) -> str:

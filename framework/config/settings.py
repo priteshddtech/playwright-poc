@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
 
+    # Optional LLM prompt overrides (file path takes precedence over inline text)
+    llm_system_prompt: str = ""
+    llm_system_prompt_file: Path | None = None
+    llm_user_context: str = ""
+    llm_user_context_file: Path | None = None
+
     capture_console_logs: bool = True
     log_healing_summary_console: bool = False
 

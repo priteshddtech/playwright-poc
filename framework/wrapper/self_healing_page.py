@@ -14,6 +14,7 @@ from framework.healing.heuristic_engine import HeuristicEngine
 from framework.healing.orchestrator import HealingOrchestrator
 from framework.healing.retry_manager import RetryManager
 from framework.knowledge.sqlite_store import SQLiteLocatorRepository
+from framework.llm.prompt_config import LlmPromptOverride
 from framework.llm.provider_factory import create_llm_provider
 from framework.logging.audit_logger import AuditLogger
 from framework.models.domain import (
@@ -35,10 +36,19 @@ class SelfHealingPage:
         execution: ExecutionContext,
         settings: Settings | None = None,
         orchestrator: HealingOrchestrator | None = None,
+        llm_system_prompt: str | None = None,
+        llm_user_context: str | None = None,
+        llm_prompt: LlmPromptOverride | None = None,
     ) -> None:
         self._page = page
         self._execution = execution
         self._settings = settings or get_settings()
+        self._llm_prompt = llm_prompt
+        if self._llm_prompt is None and (llm_system_prompt or llm_user_context):
+            self._llm_prompt = LlmPromptOverride(
+                system_prompt=llm_system_prompt,
+                user_context=llm_user_context,
+            )
         self._audit_logger = AuditLogger(
             self._settings.artifacts_dir,
             echo_summary_to_console=self._settings.log_healing_summary_console,
@@ -54,6 +64,24 @@ class SelfHealingPage:
     @property
     def execution(self) -> ExecutionContext:
         return self._execution
+
+    def set_llm_prompt(
+        self,
+        *,
+        system_prompt: str | None = None,
+        user_context: str | None = None,
+    ) -> None:
+        """Override LLM prompts from code (takes priority over .env / prompt files)."""
+        if system_prompt is None and user_context is None:
+            self._llm_prompt = None
+            self._orchestrator.set_llm_prompt(None)
+            return
+        current = self._llm_prompt or LlmPromptOverride()
+        self._llm_prompt = LlmPromptOverride(
+            system_prompt=system_prompt if system_prompt is not None else current.system_prompt,
+            user_context=user_context if user_context is not None else current.user_context,
+        )
+        self._orchestrator.set_llm_prompt(self._llm_prompt)
 
     def click(
         self,
@@ -187,7 +215,7 @@ class SelfHealingPage:
             failure_classifier=FailureClassifier(),
             confidence_engine=ConfidenceEngine(settings),
             retry_manager=RetryManager(settings.action_timeout_ms),
-            llm_provider=create_llm_provider(settings),
+            llm_provider=create_llm_provider(settings, self._llm_prompt),
             audit_logger=audit,
         )
 

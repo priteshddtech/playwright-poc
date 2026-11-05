@@ -4,17 +4,27 @@ from openai import OpenAI
 
 from framework.config.settings import Settings
 from framework.llm.base_provider import LLMProvider
-from framework.llm.prompt_builder import PromptBuilder
+from framework.llm.prompt_config import LlmPromptOverride
+from framework.llm.prompt_loader import create_prompt_builder
 from framework.llm.response_parser import ResponseParser
 from framework.models.domain import ElementIntent, FailureContext, LocatorCandidate
 
 
 class OpenAIProvider(LLMProvider):
-    def __init__(self, settings: Settings) -> None:
+    def __init__(
+        self,
+        settings: Settings,
+        prompt_override: LlmPromptOverride | None = None,
+    ) -> None:
         self._settings = settings
+        self._prompt_override = prompt_override
         self._client: OpenAI | None = None
-        self._prompt_builder = PromptBuilder()
+        self._prompt_builder = create_prompt_builder(settings, prompt_override)
         self._parser = ResponseParser()
+
+    def set_prompt_override(self, override: LlmPromptOverride | None) -> None:
+        self._prompt_override = override
+        self._prompt_builder = create_prompt_builder(self._settings, override)
 
     def is_available(self) -> bool:
         return bool(self._settings.openai_api_key.strip())
@@ -38,7 +48,7 @@ class OpenAIProvider(LLMProvider):
             response = client.chat.completions.create(
                 model=self._settings.openai_model,
                 messages=[
-                    {"role": "system", "content": PromptBuilder.SYSTEM_PROMPT},
+                    {"role": "system", "content": self._prompt_builder.system_prompt},
                     {"role": "user", "content": user_message},
                 ],
                 temperature=0.1,
