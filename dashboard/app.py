@@ -15,6 +15,7 @@ pg = st.navigation(
         st.Page("pages/4_AI_Healing_Details.py", title="AI Healing Details"),
         st.Page("pages/5_Permanent_Fix_Recommendations.py", title="Permanent Fix Recommendations"),
         st.Page("pages/6_Locator_Stability_Analysis.py", title="Locator Stability Analysis"),
+        st.Page("pages/7_Logs.py", title="Logs"),
     ]
 )
 pg.run()

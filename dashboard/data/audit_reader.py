@@ -9,6 +9,29 @@ import pandas as pd
 from dashboard.data.models import flatten_locator_fields
 
 
+def read_audit_records(audit_log_path: Path) -> list[dict[str, Any]]:
+    """Read every JSON object from the audit JSONL file (all event types)."""
+    if not audit_log_path.is_file():
+        return []
+    records: list[dict[str, Any]] = []
+    with audit_log_path.open(encoding="utf-8") as handle:
+        for line_no, line in enumerate(handle, start=1):
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                records.append(json.loads(line))
+            except json.JSONDecodeError:
+                records.append(
+                    {
+                        "event_type": "_parse_error",
+                        "_line": line_no,
+                        "_raw": line,
+                    }
+                )
+    return records
+
+
 def read_healing_outcomes(audit_log_path: Path) -> list[dict[str, Any]]:
     if not audit_log_path.is_file():
         return []

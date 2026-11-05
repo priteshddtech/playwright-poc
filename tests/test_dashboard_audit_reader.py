@@ -5,9 +5,28 @@ from pathlib import Path
 
 import pandas as pd
 
-from dashboard.data.audit_reader import load_outcomes_dataframe, read_healing_outcomes
+from dashboard.data.audit_reader import load_outcomes_dataframe, read_audit_records, read_healing_outcomes
 from dashboard.data.metrics import compute_kpis, permanent_fix_recommendations
 from dashboard.data.models import derive_page_label, locator_dict_to_display
+
+
+def test_read_audit_records_includes_all_event_types(tmp_path: Path) -> None:
+    log = tmp_path / "healing_audit.jsonl"
+    log.write_text(
+        "\n".join(
+            [
+                json.dumps({"event_type": "healing_started", "execution_id": "a"}),
+                json.dumps({"event_type": "healing_outcome", "execution_id": "b"}),
+                "not valid json",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    records = read_audit_records(log)
+    assert len(records) == 3
+    assert records[0]["event_type"] == "healing_started"
+    assert records[1]["event_type"] == "healing_outcome"
+    assert records[2]["event_type"] == "_parse_error"
 
 
 def test_read_healing_outcomes_filters_event_type(tmp_path: Path) -> None:
