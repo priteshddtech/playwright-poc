@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>License request</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; padding: 32px; }
+        .card { max-width: 480px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); }
+        label { display: block; margin-top: 12px; font-weight: 600; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; margin-top: 6px; box-sizing: border-box; }
+        #submitOrder {
+            margin-top: 20px; padding: 10px 18px; background: #2563eb; color: #fff;
+            border: none; border-radius: 6px; cursor: pointer;
+        }
+        #orderSuccessMessage { margin-top: 16px; color: #047857; font-weight: 600; }
+    </style>
+</head>
+<body>
+<div class="card" data-workflow="license-request-v1">
+    <h1>Software license request</h1>
+    <p style="color:#64748b;">Submit a new license request for your team.</p>
+
+    <form id="orderForm">
+        <label for="companyName">Company name</label>
+        <input type="text" id="companyName" name="companyName" placeholder="Acme Corp">
+
+        <label for="licenseTier">License tier</label>
+        <select id="licenseTier" name="licenseTier">
+            <option value="">Select tier</option>
+            <option value="starter">Starter</option>
+            <option value="business">Business</option>
+            <option value="enterprise">Enterprise</option>
+        </select>
+
+        <button type="submit" id="submitOrder">Submit request</button>
+    </form>
+
+    <div id="orderSuccessMessage"></div>
+</div>
+<script>
+    document.getElementById("orderForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+        document.getElementById("orderSuccessMessage").textContent =
+            "Request submitted — reference REQ-1001.";
+    });
+</script>
+</body>
+</html>

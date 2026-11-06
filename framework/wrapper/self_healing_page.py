@@ -167,7 +167,9 @@ class SelfHealingPage:
                         confidence=result.confidence,
                     )
                     return
-                continue
+                # One heal pass already tried history, heuristics, fuzzy, and LLM.
+                # Re-running the same primary locator + heal cycle is not useful.
+                break
 
         raise PlaywrightTimeoutError(
             f"Action failed for '{intent.element_key}' after healing attempts: {last_error}"

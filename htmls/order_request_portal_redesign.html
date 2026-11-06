@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Approval portal</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f8fafc; padding: 32px; }
+        .card { max-width: 520px; margin: 0 auto; background: #fff; padding: 24px; border-radius: 8px; box-shadow: 0 4px 16px rgba(15, 23, 42, 0.08); }
+        .banner { background: #fef3c7; border: 1px solid #fcd34d; padding: 12px; border-radius: 6px; margin-bottom: 16px; color: #92400e; }
+        a#openPortal { display: inline-block; margin-top: 12px; color: #2563eb; font-weight: 600; }
+        #retiredActionChip {
+            margin-top: 20px; padding: 10px 18px; background: #94a3b8; color: #fff;
+            border: none; border-radius: 6px; cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+<div class="card" data-workflow="external-approval-portal" data-portal-version="approval-portal-2">
+    <h1>License requests moved to Approval Portal 2.0</h1>
+    <div class="banner">
+        Self-service <strong>Submit request</strong> was retired. All purchases now require
+        an admin-approved workflow in the external portal.
+    </div>
+    <p style="color:#475569;">
+        There is no on-page form anymore. Users must authenticate in the portal and create
+        a purchase case there. Legacy automation locators such as <code>#submitOrder</code>
+        intentionally no longer exist.
+    </p>
+    <a id="openPortal" href="#" role="link">Open approval portal</a>
+    <br>
+    <button type="button" id="retiredActionChip" disabled title="Retired workflow">
+        Submit request (retired)
+    </button>
+</div>
+<script>
+    document.getElementById("openPortal").addEventListener("click", function (e) {
+        e.preventDefault();
+        alert("Portal sign-in would open here (not part of this demo page).");
+    });
+</script>
+</body>
+</html>

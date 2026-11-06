@@ -8,6 +8,8 @@ Usage:
     python run_visible_demo.py --form iframe --self-heal
     python run_visible_demo.py --form cascade --wait-for-enter
     python run_visible_demo.py --form cascade-changed --self-heal --wait-for-enter
+    python run_visible_demo.py --form order
+    python run_visible_demo.py --form order-failed --wait-for-enter
 """
 
 from __future__ import annotations
@@ -18,7 +20,13 @@ import time
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import Page, expect, sync_playwright
+from playwright.sync_api import (
+    Error as PlaywrightError,
+    Page,
+    TimeoutError as PlaywrightTimeoutError,
+    expect,
+    sync_playwright,
+)
 
 from framework.config.settings import get_settings
 from framework.models.domain import ExecutionContext, LocatorDefinition, LocatorStrategy
@@ -36,6 +44,10 @@ def _success_locator(form: str) -> str:
 
 
 def _wait_for_success_visible(page, form: str) -> None:
+    if form == "order":
+        expect(page.locator("#orderSuccessMessage")).to_be_visible(timeout=15_000)
+        expect(page.locator("#orderSuccessMessage")).to_contain_text("REQ-1001")
+        return
     if form in ("cascade", "cascade-changed"):
         banner = page.locator(
             "#successBanner" if form == "cascade" else "#completionToast"
@@ -91,6 +103,37 @@ def _fill_cascade_line_items(page: Page) -> None:
     page.locator("#btnApplyChanges").click()
     expect(page.locator("#applyStatus")).to_contain_text("Changes staged (2 row(s))")
     page.locator("#btnFinalSubmit").click()
+
+
+def _fill_order_request(shp: SelfHealingPage) -> None:
+    shp.fill(
+        "#companyName",
+        element_key="order_company",
+        description="Company name field on license request form",
+        value="Acme Corp",
+    )
+    shp.select_option(
+        "#licenseTier",
+        element_key="order_tier",
+        description="License tier dropdown on license request form",
+        value="business",
+    )
+    shp.click(
+        "#submitOrder",
+        element_key="order_submit",
+        description="Submit request button on license request form",
+        verify=lambda p: expect(p.locator("#orderSuccessMessage")).to_contain_text("REQ-1001"),
+    )
+
+
+def _attempt_order_request_on_portal_redesign(shp: SelfHealingPage) -> None:
+    print("Attempting legacy #submitOrder against portal-only page (expect healing to fail)...")
+    shp.click(
+        "#submitOrder",
+        element_key="order_submit",
+        description="Submit request button on license request form",
+        verify=lambda p: expect(p.locator("#orderSuccessMessage")).to_contain_text("REQ-"),
+    )
 
 
 def _fill_cascade_line_items_self_heal(shp: SelfHealingPage) -> None:
@@ -276,6 +319,9 @@ def run_demo(
     updates: dict = {}
     if form == "iframe":
         updates["action_timeout_ms"] = 12_000
+    if form == "order-failed":
+        updates["llm_mode"] = "mock"
+        updates["action_timeout_ms"] = 3_000
     updates["log_healing_summary_console"] = True
     if updates:
         settings = settings.model_copy(update=updates)
@@ -289,6 +335,8 @@ def run_demo(
         "llm-decoy": "form1_llm_decoy_grid.html",
         "cascade": "form_cascade_line_items.html",
         "cascade-changed": "form_cascade_line_items_changed.html",
+        "order": "order_request.html",
+        "order-failed": "order_request_portal_redesign.html",
     }
     html_file = html_files[form]
     form_uri = (HTML_DIR / html_file).resolve().as_uri()
@@ -317,6 +365,12 @@ def run_demo(
         )
     elif form == "cascade-changed":
         print("Changed cascade form — pass --self-heal to demo stale locator recovery.")
+    if form == "order-failed":
+        print(
+            "Business workflow replaced: no #submitOrder. Healing + LLM should exhaust; "
+            "check artifacts/logs/healing_audit.jsonl for healing_outcome failed + llm_no_proposal."
+        )
+        print("Leave the browser window open until the run finishes (about 30–90 seconds).")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False, slow_mo=slow_mo_ms)
@@ -335,6 +389,33 @@ def run_demo(
             _fill_changed_form(shp, self_heal=True)
         elif form == "cascade":
             _fill_cascade_line_items(page)
+        elif form == "order":
+            _fill_order_request(shp)
+        elif form == "order-failed":
+            try:
+                _attempt_order_request_on_portal_redesign(shp)
+            except (PlaywrightTimeoutError, PlaywrightError) as exc:
+                if "TargetClosed" in type(exc).__name__ or "closed" in str(exc).lower():
+                    print(
+                        "\nBrowser or page was closed before healing finished. "
+                        "Re-run and keep the window open until the script exits."
+                    )
+                else:
+                    print(f"\nExpected failure after healing exhausted:\n  {exc}\n")
+                audit = settings.artifacts_dir / "logs" / "healing_audit.jsonl"
+                print(f"Audit log: {audit.resolve()}")
+                try:
+                    if wait_for_enter:
+                        input("Press Enter to close the browser...")
+                    context.close()
+                    browser.close()
+                except PlaywrightError:
+                    pass
+                print("Browser closed.")
+                return
+            else:
+                print("Unexpected: legacy submit succeeded on portal-only page.", file=sys.stderr)
+                return 1
         elif form == "cascade-changed":
             if self_heal:
                 _fill_cascade_line_items_self_heal(shp)
@@ -365,8 +446,9 @@ def run_demo(
         else:
             _fill_original_form(shp)
 
-        _wait_for_success_visible(page, form)
-        print("Success message is visible on the page.")
+        if form != "order-failed":
+            _wait_for_success_visible(page, form)
+            print("Success message is visible on the page.")
         if wait_for_enter:
             input("Press Enter to close the browser...")
         else:
@@ -393,9 +475,11 @@ def main(argv: list[str] | None = None) -> int:
             "llm-decoy",
             "cascade",
             "cascade-changed",
+            "order",
+            "order-failed",
         ),
         default="original",
-        help="original | changed | iframe | llm-* | cascade | cascade-changed",
+        help="original | changed | iframe | llm-* | cascade | order | order-failed",
     )
     parser.add_argument(
         "--self-heal",

@@ -33,8 +33,8 @@ class ContextCollector:
         error_message: str,
     ) -> FailureContext:
         run_id = uuid.uuid4().hex[:12]
-        html_raw = page.content()
         failed_loc = intent.primary_locator.to_storage_string()
+        html_raw = self._safe_page_content(page)
         html_pruned = self._dom_pruner.prune(html_raw, failed_loc)
         html_pruned = self._append_frame_html(page, html_pruned)
 
@@ -44,17 +44,23 @@ class ContextCollector:
 
         screenshot_path = self._artifacts / "screenshots" / f"{run_id}.png"
         screenshot_path.parent.mkdir(parents=True, exist_ok=True)
-        page.screenshot(path=str(screenshot_path), full_page=True)
+        try:
+            page.screenshot(path=str(screenshot_path), full_page=True)
+        except Exception:
+            screenshot_path.write_bytes(b"")
 
         try:
             a11y = page.accessibility.snapshot(interesting_only=True)
         except Exception:
             a11y = {}
 
-        frames = [
-            FrameInfo(name=frame.name or "", url=frame.url or "", index=i)
-            for i, frame in enumerate(page.frames)
-        ]
+        try:
+            frames = [
+                FrameInfo(name=frame.name or "", url=frame.url or "", index=i)
+                for i, frame in enumerate(page.frames)
+            ]
+        except Exception:
+            frames = []
 
         console_logs: list[str] = []
         if self._settings.capture_console_logs:
@@ -63,8 +69,8 @@ class ContextCollector:
         history = self._repository.get_history(application_id, page_key, intent.element_key)
 
         return FailureContext(
-            url=page.url,
-            title=page.title(),
+            url=self._safe_page_attr(page, "url", ""),
+            title=self._safe_page_attr(page, "title", ""),
             html_pruned=html_pruned,
             html_snapshot_path=str(html_path),
             screenshot_path=str(screenshot_path),
@@ -92,3 +98,17 @@ class ContextCollector:
         if len(combined.encode("utf-8")) > max_bytes:
             combined = combined.encode("utf-8")[:max_bytes].decode("utf-8", errors="ignore")
         return combined
+
+    @staticmethod
+    def _safe_page_content(page: Page) -> str:
+        try:
+            return page.content()
+        except Exception:
+            return ""
+
+    @staticmethod
+    def _safe_page_attr(page: Page, attr: str, default: str) -> str:
+        try:
+            return str(getattr(page, attr))
+        except Exception:
+            return default

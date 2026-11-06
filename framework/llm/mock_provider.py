@@ -20,6 +20,9 @@ class MockLLMProvider(LLMProvider):
         desc = intent.description.lower()
         html = context.html_pruned.lower()
 
+        if "external-approval-portal" in html or "approval-portal-2" in html:
+            return None
+
         if "btncommitlines" in html and ("commit" in desc or "finalize" in desc or "cascade" in desc):
             return LocatorCandidate(
                 definition=LocatorDefinition(

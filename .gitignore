@@ -5,6 +5,7 @@
 
 # Documentation (local notes — not versioned)
 *.md
+CODE_WALKTHROUGH.md
 
 # Python
 __pycache__/
