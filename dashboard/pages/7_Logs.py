@@ -11,6 +11,32 @@ from dashboard.data.audit_reader import audit_file_mtime, read_audit_records
 from dashboard.ui.components import render_page_header
 from dashboard.ui.theme import inject_page_theme
 
+
+def _sanitize_for_json(val: object) -> object:
+    """Convert a dataframe cell to a JSON-safe value (scalars only for pd.isna)."""
+    if isinstance(val, pd.Timestamp):
+        return val.isoformat()
+    if isinstance(val, (dict, list, str, bool, int)):
+        return val
+    if isinstance(val, float):
+        return None if pd.isna(val) else val
+    if val is None:
+        return None
+    try:
+        import numpy as np
+
+        if isinstance(val, np.ndarray):
+            return val.tolist()
+    except ImportError:
+        pass
+    try:
+        if pd.isna(val):
+            return None
+    except (ValueError, TypeError):
+        pass
+    return val
+
+
 inject_page_theme()
 
 render_page_header(
@@ -113,13 +139,10 @@ if not labels:
 
 choice = st.selectbox("Select an event", range(len(labels)), format_func=lambda i: labels[i])
 
-record = sorted_records.iloc[choice].to_dict()
-for key in list(record.keys()):
-    val = record[key]
-    if isinstance(val, pd.Timestamp):
-        record[key] = val.isoformat()
-    elif pd.isna(val):
-        record[key] = None
+record = {
+    key: _sanitize_for_json(val)
+    for key, val in sorted_records.iloc[choice].to_dict().items()
+}
 
 st.json(record)
 

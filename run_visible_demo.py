@@ -6,6 +6,8 @@ Usage:
     python run_visible_demo.py
     python run_visible_demo.py --form changed --self-heal
     python run_visible_demo.py --form iframe --self-heal
+    python run_visible_demo.py --form cascade --wait-for-enter
+    python run_visible_demo.py --form cascade-changed --self-heal --wait-for-enter
 """
 
 from __future__ import annotations
@@ -16,7 +18,7 @@ import time
 import uuid
 from pathlib import Path
 
-from playwright.sync_api import expect, sync_playwright
+from playwright.sync_api import Page, expect, sync_playwright
 
 from framework.config.settings import get_settings
 from framework.models.domain import ExecutionContext, LocatorDefinition, LocatorStrategy
@@ -26,7 +28,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent
 HTML_DIR = PROJECT_ROOT / "htmls"
 
 SUCCESS_TEXT = "Employee registered successfully!"
-DEFAULT_HOLD_SECONDS = 4
+DEFAULT_HOLD_SECONDS = 2
 
 
 def _success_locator(form: str) -> str:
@@ -34,9 +36,125 @@ def _success_locator(form: str) -> str:
 
 
 def _wait_for_success_visible(page, form: str) -> None:
+    if form in ("cascade", "cascade-changed"):
+        banner = page.locator(
+            "#successBanner" if form == "cascade" else "#completionToast"
+        )
+        expect(banner).to_be_visible(timeout=15_000)
+        expect(banner).to_contain_text("Submitted 2 line item(s)")
+        return
     locator = page.locator(_success_locator(form))
     expect(locator).to_be_visible(timeout=15_000)
     expect(locator).to_have_text(SUCCESS_TEXT)
+
+
+def _fill_cascade_line_row(
+    page: Page,
+    row_index: int,
+    *,
+    name: str,
+    category_label: str,
+    status_label: str,
+    priority_value: str,
+) -> None:
+    row = page.locator(f"#lineItemsBody tr[data-row-index='{row_index}']")
+    row.locator(".item-name").fill(name)
+    row.locator(".item-category").select_option(label=category_label)
+    row.locator(".item-status").select_option(label=status_label)
+    row.locator(".item-priority").select_option(value=priority_value)
+
+
+def _fill_cascade_line_items(page: Page) -> None:
+    page.locator("#cascadeRegion").select_option(value="americas")
+    page.locator("#cascadeDepartment").select_option(value="sales")
+    page.locator("#cascadeTeam").select_option(label="Field sales")
+    page.locator("#btnRevealTable").click()
+    expect(page.locator("#lineItemsPanel")).to_be_visible()
+
+    _fill_cascade_line_row(
+        page,
+        1,
+        name="Laptop bundle",
+        category_label="Hardware",
+        status_label="Draft",
+        priority_value="high",
+    )
+    page.locator("#btnAddRow").click()
+    _fill_cascade_line_row(
+        page,
+        2,
+        name="Support hours",
+        category_label="Professional services",
+        status_label="In review",
+        priority_value="medium",
+    )
+    page.locator("#btnApplyChanges").click()
+    expect(page.locator("#applyStatus")).to_contain_text("Changes staged (2 row(s))")
+    page.locator("#btnFinalSubmit").click()
+
+
+def _fill_cascade_line_items_self_heal(shp: SelfHealingPage) -> None:
+    page = shp.page
+    shp.select_option(
+        "#cascadeRegion",
+        element_key="demo_cascade_region",
+        description="Region dropdown on line-item cascade configuration form",
+        value="americas",
+    )
+    shp.select_option(
+        "#cascadeDepartment",
+        element_key="demo_cascade_department",
+        description="Department dropdown on line-item cascade configuration form",
+        value="sales",
+    )
+    shp.select_option(
+        "#cascadeTeam",
+        element_key="demo_cascade_team",
+        description="Team dropdown on line-item cascade configuration form",
+        value="field-sales",
+    )
+    shp.click(
+        "#btnRevealTable",
+        element_key="demo_cascade_build_grid",
+        description="Build line-item grid button on cascade configuration form",
+    )
+    expect(page.locator("#lineItemsPanel")).to_be_visible()
+
+    _fill_cascade_line_row(
+        page,
+        1,
+        name="Laptop bundle",
+        category_label="Hardware",
+        status_label="Draft",
+        priority_value="high",
+    )
+    shp.click(
+        "#btnAddRow",
+        element_key="demo_cascade_add_row",
+        description="Add row button on cascade line-item grid",
+    )
+    _fill_cascade_line_row(
+        page,
+        2,
+        name="Support hours",
+        category_label="Professional services",
+        status_label="In review",
+        priority_value="medium",
+    )
+    shp.click(
+        "#btnApplyChanges",
+        element_key="demo_cascade_apply",
+        description="Apply changes button on cascade line-item grid",
+    )
+    expect(page.locator("#stageStatusMsg")).to_contain_text("Changes staged (2 row(s))")
+    shp.click(
+        "#btnFinalSubmit",
+        element_key="demo_cascade_submit",
+        description="Commit lines control to finalize the cascade workflow",
+        verify=lambda p: expect(p.locator("#completionToast")).to_contain_text(
+            "Submitted 2 line item(s)"
+        ),
+    )
 
 
 def _fill_original_form(shp: SelfHealingPage) -> None:
@@ -166,6 +284,11 @@ def run_demo(
         "original": "form1.html",
         "changed": "form1_changed.html",
         "iframe": "form1_iframe_host.html",
+        "llm-icon": "form1_llm_icon_confirm.html",
+        "llm-link": "form1_llm_link_continue.html",
+        "llm-decoy": "form1_llm_decoy_grid.html",
+        "cascade": "form_cascade_line_items.html",
+        "cascade-changed": "form_cascade_line_items_changed.html",
     }
     html_file = html_files[form]
     form_uri = (HTML_DIR / html_file).resolve().as_uri()
@@ -178,10 +301,22 @@ def run_demo(
     )
 
     print(f"Opening {html_file} in Chromium (visible browser)...")
-    if self_heal and form in ("changed", "iframe"):
+    if self_heal and form in ("changed", "iframe", "llm-icon", "llm-link", "llm-decoy"):
         print("Using stale locator #submitButton — watch self-healing recover.")
+    if form in ("llm-icon", "llm-link", "llm-decoy"):
+        print("Submit control is obfuscated — heuristics should fail and LLM should run.")
     if form == "iframe":
         print("Submit control is inside iframe 'actionsFrame' (LLM/heuristics + frame metadata).")
+    if form == "cascade":
+        print(
+            "Cascade: region → department → team → line-item grid (+ row) → apply → submit."
+        )
+    if form == "cascade-changed" and self_heal:
+        print(
+            "Using stale v1 locators on changed cascade markup — heuristics/fuzzy/LLM will recover."
+        )
+    elif form == "cascade-changed":
+        print("Changed cascade form — pass --self-heal to demo stale locator recovery.")
 
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=False, slow_mo=slow_mo_ms)
@@ -196,6 +331,37 @@ def run_demo(
             _fill_iframe_form(shp, self_heal=self_heal)
         elif form == "changed":
             _fill_changed_form(shp, self_heal=self_heal)
+        elif form in ("llm-icon", "llm-link", "llm-decoy"):
+            _fill_changed_form(shp, self_heal=True)
+        elif form == "cascade":
+            _fill_cascade_line_items(page)
+        elif form == "cascade-changed":
+            if self_heal:
+                _fill_cascade_line_items_self_heal(shp)
+            else:
+                page.locator("#cfgRegionZone").select_option(value="americas")
+                page.locator("#cfgDeptUnit").select_option(value="sales")
+                page.locator("#cascadeTeamPod").select_option(label="Field sales")
+                page.locator("#btnLoadLineGrid").click()
+                _fill_cascade_line_row(
+                    page,
+                    1,
+                    name="Laptop bundle",
+                    category_label="Hardware",
+                    status_label="Draft",
+                    priority_value="high",
+                )
+                page.locator("#btnInsertLine").click()
+                _fill_cascade_line_row(
+                    page,
+                    2,
+                    name="Support hours",
+                    category_label="Professional services",
+                    status_label="In review",
+                    priority_value="medium",
+                )
+                page.locator("#btnStageLineChanges").click()
+                page.locator("#btnCommitLines").click()
         else:
             _fill_original_form(shp)
 
@@ -218,14 +384,23 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument(
         "--form",
-        choices=("original", "changed", "iframe"),
+        choices=(
+            "original",
+            "changed",
+            "iframe",
+            "llm-icon",
+            "llm-link",
+            "llm-decoy",
+            "cascade",
+            "cascade-changed",
+        ),
         default="original",
-        help="original | changed | iframe (form1_iframe_host.html)",
+        help="original | changed | iframe | llm-* | cascade | cascade-changed",
     )
     parser.add_argument(
         "--self-heal",
         action="store_true",
-        help="Use broken #submitButton on submit so healing runs (changed/iframe forms)",
+        help="Use stale locators so healing runs (changed/iframe/cascade-changed)",
     )
     parser.add_argument(
         "--slow-mo",
@@ -248,8 +423,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
 
-    if args.self_heal and args.form not in ("changed", "iframe"):
-        print("--self-heal only applies with --form changed or iframe", file=sys.stderr)
+    if args.self_heal and args.form not in ("changed", "iframe", "cascade-changed"):
+        print(
+            "--self-heal only applies with --form changed, iframe, or cascade-changed",
+            file=sys.stderr,
+        )
         return 1
 
     try:

@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Regional line-item configuration (v2)</title>
+    <style>
+        body { font-family: "Segoe UI", Arial, sans-serif; background: #f1f5f9; margin: 0; padding: 24px; color: #0f172a; }
+        .shell { max-width: 960px; margin: auto; background: #fff; border-radius: 10px; padding: 28px; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08); }
+        h1 { margin: 0 0 8px; font-size: 1.5rem; }
+        .lead { color: #64748b; margin-bottom: 24px; }
+        .cascade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 16px; }
+        .field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+        .field select { width: 100%; padding: 10px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 14px; }
+        .field.hidden { display: none; }
+        #btnLoadLineGrid {
+            padding: 10px 18px; background: #2563eb; color: #fff; border: none; border-radius: 6px;
+            cursor: pointer; font-size: 14px; margin-bottom: 24px;
+        }
+        #btnLoadLineGrid:disabled { background: #94a3b8; cursor: not-allowed; }
+        #lineItemsPanel.hidden { display: none; }
+        #tableContextTitle { margin: 0 0 12px; font-size: 1.1rem; }
+        .table-wrap { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; margin-bottom: 12px; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th, td { padding: 10px 12px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: middle; }
+        th { background: #f8fafc; font-weight: 600; }
+        td input[type="text"], td select { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 4px; box-sizing: border-box; }
+        .line-label { font-weight: 600; color: #475569; }
+        #btnInsertLine {
+            width: 36px; height: 36px; border-radius: 50%; border: 2px solid #2563eb; background: #eff6ff;
+            color: #2563eb; font-size: 22px; line-height: 1; cursor: pointer; margin-bottom: 20px;
+        }
+        .actions { display: flex; gap: 12px; flex-wrap: wrap; }
+        .actions button {
+            padding: 10px 20px; border-radius: 6px; border: none; cursor: pointer; font-size: 14px;
+        }
+        #btnStageLineChanges { background: #0f766e; color: #fff; }
+        #btnCommitLines { background: #2563eb; color: #fff; }
+        #btnCommitLines:disabled { background: #94a3b8; cursor: not-allowed; }
+        #stageStatusMsg { margin-top: 12px; min-height: 20px; color: #0f766e; font-weight: 600; }
+        #completionToast { margin-top: 16px; padding: 12px; border-radius: 6px; background: #ecfdf5; color: #047857; display: none; }
+        #completionToast.visible { display: block; }
+    </style>
+</head>
+<body>
+<div class="shell">
+    <h1>Regional line-item configuration</h1>
+    <p class="lead">Refactored markup — labels and button text preserved for accessibility.</p>
+
+    <div class="cascade">
+        <div class="field">
+            <label for="cfgRegionZone">Region</label>
+            <select id="cfgRegionZone">
+                <option value="">Select region</option>
+                <option value="americas">Americas</option>
+                <option value="emea">EMEA</option>
+                <option value="apac">APAC</option>
+            </select>
+        </div>
+        <div class="field hidden" id="deptUnitField">
+            <label for="cfgDeptUnit">Department</label>
+            <select id="cfgDeptUnit" disabled>
+                <option value="">Select department</option>
+            </select>
+        </div>
+        <div class="field hidden" id="teamPodField">
+            <label for="cascadeTeamPod">Team</label>
+            <select id="cascadeTeamPod" disabled>
+                <option value="">Select team</option>
+            </select>
+        </div>
+    </div>
+
+    <button type="button" id="btnLoadLineGrid" disabled>Build line-item grid</button>
+
+    <div id="lineItemsPanel" class="hidden">
+        <h2 id="tableContextTitle">Line items</h2>
+        <div class="table-wrap">
+            <table id="lineItemsTable">
+                <thead>
+                    <tr>
+                        <th>Line</th>
+                        <th>Item name</th>
+                        <th>Category</th>
+                        <th>Status</th>
+                        <th>Priority</th>
+                    </tr>
+                </thead>
+                <tbody id="lineItemsBody"></tbody>
+            </table>
+        </div>
+        <button type="button" id="btnInsertLine" title="Add row" aria-label="Add row">+</button>
+        <div class="actions">
+            <button type="button" id="btnStageLineChanges">Apply changes</button>
+            <button type="button" id="btnCommitLines" name="btnFinalSubmitAction" disabled>
+                Commit lines
+            </button>
+        </div>
+        <div id="stageStatusMsg"></div>
+    </div>
+
+    <div id="completionToast"></div>
+</div>
+
+<template id="rowTemplate">
+    <tr class="line-item-row">
+        <td><span class="line-label"></span></td>
+        <td><input type="text" class="item-name" placeholder="Enter item name"></td>
+        <td><select class="item-category"></select></td>
+        <td><select class="item-status"></select></td>
+        <td><select class="item-priority">
+            <option value="">Priority</option>
+            <option value="low">Low</option>
+            <option value="medium">Medium</option>
+            <option value="high">High</option>
+            <option value="critical">Critical</option>
+        </select></td>
+    </tr>
+</template>
+
+<script>
+(function () {
+    const DEPARTMENTS = {
+        americas: [
+            { value: "sales", label: "Sales" },
+            { value: "ops", label: "Operations" },
+            { value: "support", label: "Customer support" },
+        ],
+        emea: [
+            { value: "finance", label: "Finance" },
+            { value: "legal", label: "Legal" },
+            { value: "hr", label: "Human resources" },
+        ],
+        apac: [
+            { value: "engineering", label: "Engineering" },
+            { value: "product", label: "Product" },
+            { value: "design", label: "Design" },
+        ],
+    };
+
+    const TEAMS = {
+        sales: ["Inside sales", "Field sales", "Partnerships"],
+        ops: ["Fulfillment", "Logistics", "Inventory"],
+        support: ["Tier 1", "Tier 2", "Escalations"],
+        finance: ["Accounts payable", "Accounts receivable", "Payroll"],
+        legal: ["Contracts", "Compliance", "IP"],
+        hr: ["Recruiting", "Benefits", "L&D"],
+        engineering: ["Platform", "Mobile", "QA"],
+        product: ["Growth", "Core", "Research"],
+        design: ["UX", "Visual", "Research"],
+    };
+
+    const CATEGORIES_BY_REGION = {
+        americas: ["Hardware", "Software license", "Professional services", "Maintenance"],
+        emea: ["Consulting", "Regulatory fee", "Training", "Support package"],
+        apac: ["Cloud resource", "Integration", "Localization", "Vendor tooling"],
+    };
+
+    const STATUS_OPTIONS = ["Draft", "In review", "Approved", "On hold"];
+
+    const regionEl = document.getElementById("cfgRegionZone");
+    const deptField = document.getElementById("deptUnitField");
+    const deptEl = document.getElementById("cfgDeptUnit");
+    const teamField = document.getElementById("teamPodField");
+    const teamEl = document.getElementById("cascadeTeamPod");
+    const revealBtn = document.getElementById("btnLoadLineGrid");
+    const panel = document.getElementById("lineItemsPanel");
+    const titleEl = document.getElementById("tableContextTitle");
+    const bodyEl = document.getElementById("lineItemsBody");
+    const addBtn = document.getElementById("btnInsertLine");
+    const applyBtn = document.getElementById("btnStageLineChanges");
+    const submitBtn = document.getElementById("btnCommitLines");
+    const applyStatus = document.getElementById("stageStatusMsg");
+    const successBanner = document.getElementById("completionToast");
+    const rowTemplate = document.getElementById("rowTemplate");
+
+    let rowCounter = 0;
+    let applied = false;
+    let currentRegion = "";
+
+    function fillSelect(select, options, placeholder) {
+        select.innerHTML = "";
+        const first = document.createElement("option");
+        first.value = "";
+        first.textContent = placeholder;
+        select.appendChild(first);
+        options.forEach(function (opt) {
+            const o = document.createElement("option");
+            if (typeof opt === "string") {
+                o.value = opt.toLowerCase().replace(/\s+/g, "-");
+                o.textContent = opt;
+            } else {
+                o.value = opt.value;
+                o.textContent = opt.label;
+            }
+            select.appendChild(o);
+        });
+    }
+
+    function resetTeam() {
+        teamField.classList.add("hidden");
+        teamEl.disabled = true;
+        fillSelect(teamEl, [], "Select team");
+        revealBtn.disabled = true;
+    }
+
+    function resetTable() {
+        panel.classList.add("hidden");
+        bodyEl.innerHTML = "";
+        rowCounter = 0;
+        applied = false;
+        submitBtn.disabled = true;
+        applyStatus.textContent = "";
+        successBanner.classList.remove("visible");
+        successBanner.textContent = "";
+    }
+
+    regionEl.addEventListener("change", function () {
+        currentRegion = regionEl.value;
+        resetTeam();
+        resetTable();
+        if (!currentRegion) {
+            deptField.classList.add("hidden");
+            deptEl.disabled = true;
+            return;
+        }
+        deptField.classList.remove("hidden");
+        deptEl.disabled = false;
+        fillSelect(deptEl, DEPARTMENTS[currentRegion] || [], "Select department");
+    });
+
+    deptEl.addEventListener("change", function () {
+        resetTeam();
+        resetTable();
+        const dept = deptEl.value;
+        if (!dept) {
+            return;
+        }
+        teamField.classList.remove("hidden");
+        teamEl.disabled = false;
+        fillSelect(teamEl, TEAMS[dept] || [], "Select team");
+    });
+
+    teamEl.addEventListener("change", function () {
+        resetTable();
+        revealBtn.disabled = !teamEl.value;
+    });
+
+    function categoryOptions() {
+        return CATEGORIES_BY_REGION[currentRegion] || CATEGORIES_BY_REGION.americas;
+    }
+
+    function addRow() {
+        rowCounter += 1;
+        const clone = rowTemplate.content.cloneNode(true);
+        const row = clone.querySelector("tr");
+        row.dataset.rowIndex = String(rowCounter);
+        clone.querySelector(".line-label").textContent = "Line " + rowCounter;
+
+        const catSelect = clone.querySelector(".item-category");
+        fillSelect(catSelect, categoryOptions(), "Category");
+        const statusSelect = clone.querySelector(".item-status");
+        fillSelect(statusSelect, STATUS_OPTIONS, "Status");
+
+        bodyEl.appendChild(clone);
+        applied = false;
+        submitBtn.disabled = true;
+        applyStatus.textContent = "";
+    }
+
+    revealBtn.addEventListener("click", function () {
+        if (!currentRegion || !deptEl.value || !teamEl.value) {
+            return;
+        }
+        const regionLabel = regionEl.options[regionEl.selectedIndex].text;
+        const deptLabel = deptEl.options[deptEl.selectedIndex].text;
+        const teamLabel = teamEl.options[teamEl.selectedIndex].text;
+        titleEl.textContent = "Line items — " + regionLabel + " / " + deptLabel + " / " + teamLabel;
+        panel.classList.remove("hidden");
+        bodyEl.innerHTML = "";
+        rowCounter = 0;
+        addRow();
+    });
+
+    addBtn.addEventListener("click", addRow);
+
+    applyBtn.addEventListener("click", function () {
+        const rows = bodyEl.querySelectorAll(".line-item-row");
+        if (!rows.length) {
+            applyStatus.textContent = "Add at least one line item.";
+            return;
+        }
+        let valid = true;
+        rows.forEach(function (row) {
+            const name = row.querySelector(".item-name").value.trim();
+            const cat = row.querySelector(".item-category").value;
+            const status = row.querySelector(".item-status").value;
+            const priority = row.querySelector(".item-priority").value;
+            if (!name || !cat || !status || !priority) {
+                valid = false;
+            }
+        });
+        if (!valid) {
+            applyStatus.textContent = "Complete all fields in every row before applying.";
+            applied = false;
+            submitBtn.disabled = true;
+            return;
+        }
+        applied = true;
+        submitBtn.disabled = false;
+        applyStatus.textContent = "Changes staged (" + rows.length + " row(s)). You can submit.";
+    });
+
+    submitBtn.addEventListener("click", function () {
+        if (!applied) {
+            return;
+        }
+        const rows = bodyEl.querySelectorAll(".line-item-row");
+        successBanner.textContent =
+            "Submitted " + rows.length + " line item(s) for " +
+            teamEl.options[teamEl.selectedIndex].text + ".";
+        successBanner.classList.add("visible");
+    });
+})();
+</script>
+</body>
+</html>

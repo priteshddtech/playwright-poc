@@ -20,7 +20,48 @@ class MockLLMProvider(LLMProvider):
         desc = intent.description.lower()
         html = context.html_pruned.lower()
 
+        if "btncommitlines" in html and ("commit" in desc or "finalize" in desc or "cascade" in desc):
+            return LocatorCandidate(
+                definition=LocatorDefinition(
+                    strategy=LocatorStrategy.CSS,
+                    value="#btnCommitLines",
+                ),
+                method=HealingMethod.LLM,
+                llm_confidence=97.0,
+                reason="Mock: cascade form final commit button (renamed from Submit)",
+            )
+
         if "submit" in desc or "registration" in desc:
+            if "vault_action_confirm" in html:
+                return LocatorCandidate(
+                    definition=LocatorDefinition(
+                        strategy=LocatorStrategy.CSS,
+                        value="#vault_action_confirm",
+                    ),
+                    method=HealingMethod.LLM,
+                    llm_confidence=97.0,
+                    reason="Mock: icon-only confirm control (no Submit heuristics)",
+                )
+            if "regflowprimary" in html:
+                return LocatorCandidate(
+                    definition=LocatorDefinition(
+                        strategy=LocatorStrategy.CSS,
+                        value="#regFlowPrimary",
+                    ),
+                    method=HealingMethod.LLM,
+                    llm_confidence=96.5,
+                    reason="Mock: continue link styled as primary action",
+                )
+            if "host_xk31" in html:
+                return LocatorCandidate(
+                    definition=LocatorDefinition(
+                        strategy=LocatorStrategy.CSS,
+                        value="#host_xk31",
+                    ),
+                    method=HealingMethod.LLM,
+                    llm_confidence=96.0,
+                    reason="Mock: primary chip among decoy toolbar controls",
+                )
             if "iframeregisterbtn" in html or "iframe-complete-btn" in html:
                 frame_name = "actionsFrame"
                 for frame in context.frames:
