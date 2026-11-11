@@ -266,6 +266,34 @@ streamlit run dashboard/app.py
 
 Reads `artifacts/logs/healing_audit.jsonl` and `artifacts/locator_kb.db` (override with `ARTIFACTS_DIR`).
 
+### Clear artifacts (logs, snapshots, SQLite)
+
+Demos and tests accumulate files under `artifacts/` (`logs/`, `html/`, `screenshots/`, `locator_kb.db`). To wipe them and start fresh:
+
+```bash
+python scripts/clear_artifacts.py
+```
+
+Preview without deleting:
+
+```bash
+python scripts/clear_artifacts.py --dry-run
+```
+
+Uses paths from `.env` / `Settings` (`ARTIFACTS_DIR`, `SQLITE_PATH`). Override:
+
+```bash
+python scripts/clear_artifacts.py --artifacts-dir D:\playwright-poc2\artifacts
+```
+
+**PowerShell one-liner** (same default layout, no script):
+
+```powershell
+Remove-Item -Recurse -Force artifacts\logs\*, artifacts\html\*, artifacts\screenshots\* -ErrorAction SilentlyContinue; Remove-Item -Force artifacts\locator_kb.db -ErrorAction SilentlyContinue
+```
+
+After clearing, refresh the Streamlit dashboard (click **Refresh** on the Logs page or restart `streamlit run`).
+
 ## Phase 2 (not in MVP)
 
 REST `/heal` API, PostgreSQL, Redis cache, human review UI, OpenTelemetry.
